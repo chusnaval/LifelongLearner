@@ -1,0 +1,7 @@
+{
+    "feeds": [
+        {"url": "https://www.infoq.com/feed?token=LhCCgUeJIoT4WBAIY9MnddUVLi6BTD28", "type": "Magazines", "fields": ["authors", "link", "published", "summary", "tags", "title", "updated"]},
+        {"url": "https://www.greaterthancode.com/feed/podcast", "type":"podcast", "fields": ["authors", "link", "published", "summary", "title", "updated"]}
+    ]
+
+}

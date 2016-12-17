@@ -1,14 +1,22 @@
 import feedparser
 import datetime
 from pymongo import MongoClient
+
 import json
 
-
-RSS_URL = "https://www.infoq.com/feed?token=LhCCgUeJIoT4WBAIY9MnddUVLi6BTD28"
-
-feed = feedparser.parse(RSS_URL)
-
 client = MongoClient('mongodb://localhost:27017/')
+
+
+class FeedURL:
+    url = None
+    items = []
+    type = None
+
+    def __init__(self, url_param, items_param, type_param):
+        self.url = url_param
+        self.items = items_param
+        self.type = type_param
+
 
 class FeedObject:
     authors = None
@@ -17,24 +25,14 @@ class FeedObject:
     summary_detail = None
     tags = None
     title = None
+    updated = None
 
     def __repr__(self, *args, **kwargs):
         return super().__repr__(*args, **kwargs)
 
-    updated = None
-
-    def __init__(self, authors_param, link_param, published_date_param, summary_detail_param, tags_param, title_param, update_param):
-        self.authors = [author['name'] for author in authors_param]
-        self.link = link_param
-        self.published_date = published_date_param
-        self.summary_detail = summary_detail_param
-        self.tags = [tag['term'] for tag in tags_param]
-        self.title = title_param
-        self.updated = update_param
-
 
     def feed_dict_str(self, list):
-        return "Authors: ["
+        rep = "Authors: ["
         for element in list:
             rep += '"' + element + '",'
         length = len(rep) - 1
@@ -49,25 +47,51 @@ class FeedObject:
 
 
 
-def process(self):
-    db = client['lifelongLearner']
-    posts = db.posts
-    post = posts.find_one({"_id": self.link})
-    if not post:
-        post = {"_id": self.link,
-                "Title": self.title,
-                "Authors": self.authors,
-                "Published Date": self.published_date,
-                "Summary": self.summary_detail,
-                "Tags": self.tags,
-                "Updated": self.updated,
-                "Inserted": datetime.datetime.utcnow()}
-        post_id = posts.insert_one(post).inserted_id
+def insert_feed_objects(feed_objects):
+    for feed_object in feed_objects:
+        db = client['lifelongLearner3']
+        posts = db.posts
+        post = posts.find_one({"_id": feed_object.link})
+        if not post:
+            post = {"_id": feed_object.link,
+                    "Title": feed_object.title,
+                    "Authors": feed_object.authors,
+                    "Published Date": feed_object.published_date,
+                    "Summary": feed_object.summary_detail,
+                    "Tags": feed_object.tags,
+                    "Updated": feed_object.updated,
+                    "Inserted": datetime.datetime.utcnow()}
+            post_id = posts.insert_one(post).inserted_id
 
 
-for item in feed['items']:
-    fo = FeedObject(item['authors'], item['link'], item['published'], item['summary'], item['tags'], item['title'], item['updated'])
-    process(fo)
-    print(fo)
+def obtain_feed_urls():
+    feeds = []
+    with open('feeds.json') as data_file:
+        data = json.load(data_file)
+        for item in iter(data['feeds']):
+            feeds.append(FeedURL(item['url'], feedparser.parse(item['url'])['items'], item['type']))
+    return  feeds
 
 
+def convert_url_to_feed_object(feed_url):
+    feed_objects = []
+    for item in feed_url.items:
+        from lifelongLearner.dynamic_feed_object_builder import dynamic_feed_object_builder
+        fo = dynamic_feed_object_builder.create_feed_object(item)
+        feed_objects.append(fo)
+    return feed_objects
+
+
+def process_feed_url(feed_url):
+    feed_objects = convert_url_to_feed_object(feed_url)
+    insert_feed_objects(feed_objects)
+    print(feed_objects)
+
+
+def main():
+    feeds_urls = obtain_feed_urls()
+    for feed_url in feeds_urls:
+        process_feed_url(feed_url)
+
+if __name__ == '__main__':
+    main()
